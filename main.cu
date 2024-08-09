@@ -393,8 +393,8 @@ int main() {
         ++step;
         auto step_start = chrono::high_resolution_clock::now();
 
-        int overall_best_score = best_score;
-        Grid overall_best_grid = best_grid;
+        int current_best_score = best_score;
+        Grid current_best_grid = best_grid;
 
         // Copy data to GPU
         for (int dev = 0; dev < num_devices; ++dev) {
@@ -420,16 +420,16 @@ int main() {
             cudaCheckError(
                 cudaMemcpy(device_best_grid.data(), d_grid[dev], GRID_SIZE * sizeof(int), cudaMemcpyDeviceToHost));
 
-            if (device_best_score > overall_best_score) {
-                overall_best_score = device_best_score;
-                overall_best_grid = device_best_grid;
+            if (device_best_score > current_best_score) {
+                current_best_score = device_best_score;
+                current_best_grid = device_best_grid;
             }
         }
 
         // Update best result
-        if (overall_best_score > best_score) {
-            best_score = overall_best_score;
-            best_grid = overall_best_grid;
+        if (current_best_score > best_score) {
+            best_score = current_best_score;
+            best_grid = current_best_grid;
             write_grid_to_file(best_grid, OUTPUT_PATH + "grid.txt");
         }
 
