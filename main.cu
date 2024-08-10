@@ -340,19 +340,23 @@ void write_grid_to_file(const Grid &grid, const string &filename) {
     }
 }
 
-// Copy grid from CPU to GPU
-void copy_grid_to_device(const Grid &host_grid, int *device_grid) {
-    cudaCheckError(cudaMemcpy(device_grid, host_grid.data(), GRID_SIZE * sizeof(int), cudaMemcpyHostToDevice));
+__global__ void benchmark_kernel(int *d_grid, int *d_best_score, int iterations_per_thread) {
+    int local_grid[d_ROWS * d_COLS];
+    for (int i = 0; i < d_ROWS * d_COLS; ++i) {
+        local_grid[i] = d_grid[i];
+    }
+    for (int iter = 0; iter < iterations_per_thread; ++iter) {
+        int score = score_gpu(local_grid);
+        atomicMax(d_best_score, score);
+    }
 }
 
-// Copy grid from GPU to CPU
-void copy_grid_from_device(int *device_grid, Grid &host_grid) {
-    cudaCheckError(cudaMemcpy(host_grid.data(), device_grid, GRID_SIZE * sizeof(int), cudaMemcpyDeviceToHost));
-}
+int main(int argc, char *argv[]) {
+    bool benchmark_mode = false;
+    if (argc > 1 && string(argv[1]) == "--benchmark") {
+        benchmark_mode = true;
+    }
 
-int main() {
-    auto total_start = chrono::high_resolution_clock::now();
-    int step = 0;
     // Read current best grid
     Grid best_grid = read_grid_from_file(INPUT_PATH + "grid.txt");
     int best_score = score(best_grid);
@@ -375,6 +379,42 @@ int main() {
     const int threads_per_block = 256;
     const int iterations_per_thread = 10;
 
+    auto total_start = chrono::high_resolution_clock::now();
+
+    // benchmark here
+    if (benchmark_mode) {
+        cout << endl << "Running benchmark..." << endl;
+        // Run benchmark kernel
+        for (int dev = 0; dev < num_devices; ++dev) {
+            cudaSetDevice(dev);
+            cudaCheckError(cudaMemcpy(d_grid[dev], best_grid.data(), GRID_SIZE * sizeof(int), cudaMemcpyHostToDevice));
+            benchmark_kernel<<<num_blocks, threads_per_block>>>(d_grid[dev], d_best_score[dev], iterations_per_thread);
+        }
+        cudaCheckError(cudaDeviceSynchronize());
+
+        // Collect and print benchmark results
+        for (int dev = 0; dev < num_devices; ++dev) {
+            cudaSetDevice(dev);
+            int device_best_score;
+            cudaCheckError(cudaMemcpy(&device_best_score, d_best_score[dev], sizeof(int), cudaMemcpyDeviceToHost));
+        }
+        auto total_end = chrono::high_resolution_clock::now();
+        chrono::duration<double> total_duration = total_end - total_start;
+        cout << "Benchmark finished" << endl;
+        cout << "Score: " << best_score << endl;
+        cout << "Total time: " << total_duration.count() << " seconds" << endl;
+        long long total_operations = static_cast<long long>(best_score) * num_blocks * threads_per_block * iterations_per_thread * num_devices;
+        cout << "Operations per second: " << total_operations / total_duration.count() << endl << endl;
+
+        // Free memory
+        for (int dev = 0; dev < num_devices; ++dev) {
+            cudaSetDevice(dev);
+            cudaCheckError(cudaFree(d_grid[dev]));
+            cudaCheckError(cudaFree(d_best_score[dev]));
+        }
+        return 0;
+    }
+
     // Allocate memory for random number generator states
     curandState *d_states[num_devices];
     for (int dev = 0; dev < num_devices; ++dev) {
@@ -388,6 +428,8 @@ int main() {
         init_random_states<<<num_blocks, threads_per_block>>>(d_states[dev], time(NULL));
     }
     cudaCheckError(cudaDeviceSynchronize());
+
+    int step = 0;
 
     while (true) {
         ++step;
