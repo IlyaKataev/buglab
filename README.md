@@ -46,7 +46,8 @@ The mutation process involves applying a random square bitmask of size `mask_siz
 
 Kaggle environment:
  - T4 x2
- - Maze with score 14734414
+ - Maze with score 14,734,414
+ - 100 iterations per thread
  - Benchmark mode
 
 ```
@@ -56,17 +57,23 @@ Operations per second: 3.72982e+10
 
 ## Score
 
-This solution achieves a score of 14734414
+This solution achieves a score of 14,734,414
 
 ## Usage
 
-To compile the solution, use a C++ compiler with CUDA support. For use on Kaggle, compile with the `-DKAGGLE` flag:
+Use a C++ compiler with CUDA support. 
+
+```
+nvcc -o main main.cu
+```
+
+For use on Kaggle, compile with the `-DKAGGLE` flag:
 
 ```
 nvcc -DKAGGLE -o main main.cu
 ```
 
-This flag sets the input and output directories as they are on Kaggle. If compiling without this flag, the input and output
+Flag sets the input and output directories as they are on Kaggle. If compiling without this flag, the input and output
 will be in the same directory as the executable file. 
 
 When running the program, you may need to adjust the `num_blocks` and `threads_per_block` variables for optimal performance on different GPUs.
@@ -78,3 +85,9 @@ When running the program, you may need to adjust the `num_blocks` and `threads_p
 ```
 
 The program starts by reading the initial maze from the `grid.txt`. As the program runs, it continually updates `grid.txt` with the current best maze.
+
+To run benchmark, use the `--benchmark` flag:
+
+```
+./main --benchmark
+```
