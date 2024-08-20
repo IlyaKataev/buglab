@@ -202,7 +202,6 @@ __device__ int score_gpu(const int *grid) {
     int steps = 0;
 
     while (x != d_ROWS - 2 || y != d_COLS - 2) {
-        ++steps;
         ++visits[x * d_COLS + y];
 
         int valid_moves[4] = {0};
@@ -254,6 +253,10 @@ __device__ int score_gpu(const int *grid) {
         } else {
             return 0;
         }
+    }
+
+    for (int i = 0; i < d_ROWS * d_COLS; ++i) {
+        steps += visits[i];
     }
 
     return steps;
