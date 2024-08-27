@@ -94,7 +94,6 @@ int score(const Grid &grid) {
     int steps = 0;
 
     while (x != ROWS - 2 || y != COLS - 2) {
-        steps++;
         visits[x * COLS + y]++;
 
         int valid_moves[4] = {0};
@@ -147,6 +146,11 @@ int score(const Grid &grid) {
             return 0;
         }
     }
+
+    for (int i = 0; i < GRID_SIZE; ++i) {
+        steps += visits[i];
+    }
+
     return steps;
 }
 
@@ -406,7 +410,8 @@ int main(int argc, char *argv[]) {
         cout << "Benchmark finished" << endl;
         cout << "Score: " << best_score << endl;
         cout << "Total time: " << total_duration.count() << " seconds" << endl;
-        long long total_operations = static_cast<long long>(best_score) * num_blocks * threads_per_block * iterations_per_thread * num_devices;
+        long long total_operations = static_cast<long long>(best_score) * num_blocks * threads_per_block *
+                                     iterations_per_thread * num_devices;
         cout << "Operations per second: " << total_operations / total_duration.count() << endl << endl;
 
         // Free memory
